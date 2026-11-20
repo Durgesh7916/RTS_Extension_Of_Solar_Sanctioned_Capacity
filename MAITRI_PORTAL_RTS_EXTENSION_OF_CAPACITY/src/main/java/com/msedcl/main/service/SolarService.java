@@ -283,10 +283,10 @@ public class SolarService {
 				if (validationMessage != null) {
 				    return validationMessage;
 				}
-				// Step 3: Check Existing Solar Extension Application
+				// Step 3: Check Existing Solar Extension/Reduction Application
 				validationMessage =
 				        ConsumerStatusValidator.validateExistingSolarExtensionApplication(
-				                conn, req.getConsumerNumber());
+				                conn, req.getConsumerNumber(),req.getCapacityExtensionFlagYn());
 
 				if (validationMessage != null) {
 				    return validationMessage;
@@ -466,9 +466,7 @@ public class SolarService {
 
 			//boolean reCapacityCheck = (req.getExistReSancCapacity() + req.getNewReCapacity()) > req.getExistingLoad();
 			
-	boolean reCapacityCheck =
-		        Math.ceil(req.getExistReSancCapacity() + req.getNewReCapacity())
-			        > Math.ceil(req.getExistingLoad());
+	
 			        
 			        
 			/*
@@ -518,14 +516,24 @@ public class SolarService {
 //				return "ERROR: Cannot proceed to Solar Application, Load Extension Required First Create Load Change Application \n"
 //						+ "Applied Load=" + req.getNewLoad() + "  Existing load =" + req.getExistingLoad();
 //			}
+			// ==================================================
+			// CHECK TOTAL LOAD VALIDATION ONLY FOR EXTENSION (Y)
+			// ==================================================
 
-			if (reCapacityCheck) {
-				// req.setLoadChangeApplicationId(0);
-				return "ERROR: Cannot proceed to Solar Application, "
-						+ "RE Sanctioned Capacity Cannot Be Greater Then Existing Total Load\n"
-						+ "Total RE Capacity Applied =" + (req.getExistReSancCapacity() + req.getNewReCapacity()) + "\n"
-						+ "Existing Total load =" + req.getExistingLoad() + "\n"
-						+ "Load Extension Required First Create Load Change Application OR Apply Solar Capacity UpTo Total Load";
+			if ("Y".equalsIgnoreCase(req.getCapacityExtensionFlagYn())) {
+
+			    boolean reCapacityCheck =
+			            Math.ceil(req.getExistReSancCapacity() + req.getNewReCapacity())
+			                    > Math.ceil(req.getExistingLoad());
+
+			    if (reCapacityCheck) {
+
+			        return "ERROR: Cannot proceed to Solar Application, "
+			                + "RE Sanctioned Capacity Cannot Be Greater Than Existing Total Load\n"
+			                + "Total RE Capacity Applied = " + (req.getExistReSancCapacity() + req.getNewReCapacity()) + "\n"
+			                + "Existing Total Load = " + req.getExistingLoad() + "\n"
+			                + "Load Extension Required First Create Load Change Application OR Apply Solar Capacity UpTo Total Load";
+			    }
 			}
 			
 			
@@ -539,42 +547,157 @@ public class SolarService {
 //				        +"New Capacity ="+req.getNewReCapacity();
 //			}
 			
+//			// ==================================================
+//			// SOLAR CAPACITY EXTENSION FLAG VALIDATION
+//			// ==================================================
+//
+//			Double existingCapacity = req.getExistReSancCapacity();
+//			Double newCapacity = req.getNewReCapacity();
+//
+//			String extensionFlag = req.getCapacityExtensionFlagYn();
+//			
+//			// Existing Capacity Null Handling
+//			if (existingCapacity == null) {
+//			    existingCapacity = 0.0;
+//			}
+//
+//			// Rule 1: Existing and new capacity both greater than zero,
+//			// then extension flag must be Y.
+//			
+//			if (newCapacity == null || newCapacity <= 0) {
+//
+//		        return "ERROR: New Solar Capacity Must Be Greater Than Zero "
+//		                + "For Extension Of Solar Sanction Capacity Application.\n"
+//		                + "New Capacity = " + req.getNewReCapacity();
+//		    }
+//			if (existingCapacity > 0 && newCapacity > 0) {
+//
+//			    if (!"Y".equalsIgnoreCase(extensionFlag)) {
+//
+//			        return "ERROR: Capacity Extension Flag Must Be Y "
+//			                + "When New Solar Capacity Are Greater Than Zero.\n"
+//			                + "Existing Capacity = " + existingCapacity + "\n"
+//			                + "New Capacity = " + newCapacity;
+//			    }
+//			}
+//
+//			// Rule 2: If extension flag is Y, new capacity must be greater than zero.
+//			if ("Y".equalsIgnoreCase(extensionFlag) && newCapacity <= 0 && existingCapacity > 0) {
+//
+//			    return "ERROR: New Solar Capacity Must Be Greater Than Zero "
+//			            + "When Capacity Extension Flag Is Y.\n"
+//			            + "New Capacity = " + newCapacity;
+//			}
+//			// END OF EXTESION OF SOLAR SANCTIONED CAPACITY
+//			
+//			// ==================================================
+//			// SOLAR CAPACITY REDUCTION FLAG VALIDATION
+//			// ==================================================
+//
+//			//Double existingCapacity = req.getExistReSancCapacity();
+//			//Double newCapacity = req.getNewReCapacity();
+//			//String extensionFlag = req.getCapacityExtensionFlagYn();
+//
+//			// Existing Capacity Null Handling
+//			if (existingCapacity == null) {
+//			    existingCapacity = 0.0;
+//			}
+//
+//			// Rule 1: Existing and new capacity must be greater than zero.
+//			if (existingCapacity <= 0 || newCapacity == null || newCapacity <= 0) {
+//
+//			    return "ERROR: Existing and New Solar Capacity Must Be Greater Than Zero "
+//			            + "For Reduction Of Solar Sanction Capacity Application.\n"
+//			            + "Existing Capacity = " + existingCapacity + "\n"
+//			            + "New Capacity = " + newCapacity;
+//			}
+//
+//			// Rule 2: Reduction flag must be R.
+//			if (!"R".equalsIgnoreCase(extensionFlag)) {
+//
+//			    return "ERROR: Capacity Reduction Flag Must Be R "
+//			            + "For Reduction Of Solar Sanction Capacity Application.\n"
+//			            + "Capacity Reduction Flag = " + extensionFlag;
+//			}
+//
+//			// Rule 3: New capacity must be less than existing capacity.
+//			if (newCapacity >= existingCapacity) {
+//
+//			    return "ERROR: New Solar Capacity Must Be Less Than Existing "
+//			            + "Sanction Capacity For Reduction Application.\n"
+//			            + "Existing Capacity = " + existingCapacity + "\n"
+//			            + "New Capacity = " + newCapacity;
+//			}
+//			
+//			//  END REDUCTION OF SOLAR SANCTIONED CAPACITY
+			
+
 			// ==================================================
-			// SOLAR CAPACITY EXTENSION FLAG VALIDATION
+			// SOLAR CAPACITY EXTENSION / REDUCTION FLAG VALIDATION
 			// ==================================================
 
-			double existingCapacity = req.getExistReSancCapacity();
-			double newCapacity = req.getNewReCapacity();
-
+			Double existingCapacity = req.getExistReSancCapacity();
+			Double newCapacity = req.getNewReCapacity();
 			String extensionFlag = req.getCapacityExtensionFlagYn();
 
-			// Rule 1: Existing and new capacity both greater than zero,
-			// then extension flag must be Y.
-			
-			if (req.getNewReCapacity() == null || req.getNewReCapacity() <= 0) {
+			// Existing Capacity Null Handling
+			if (existingCapacity == null) {
+			    existingCapacity = 0.0;
+			}
 
-		        return "ERROR: New Solar Capacity Must Be Greater Than Zero "
-		                + "For Extension Of Solar Sanction Capacity Application.\n"
-		                + "New Capacity = " + req.getNewReCapacity();
-		    }
-			if (existingCapacity > 0 && newCapacity > 0) {
+			// ==================================================
+			// RULE 1: SOLAR CAPACITY EXTENSION (FLAG = Y)
+			// ==================================================
+			// ==================================================
+			// RULE 1: SOLAR CAPACITY EXTENSION (FLAG = Y)
+			// ==================================================
 
-			    if (!"Y".equalsIgnoreCase(extensionFlag)) {
+			if ("Y".equalsIgnoreCase(extensionFlag)) {
 
-			        return "ERROR: Capacity Extension Flag Must Be Y "
-			                + "When New Solar Capacity Are Greater Than Zero.\n"
+			    // Existing and New Capacity must be greater than zero
+			    if (existingCapacity <= 0 || newCapacity == null || newCapacity <= 0) {
+
+			        return "ERROR: Existing and New Solar Capacity Must Be Greater Than Zero "
+			                + "For Extension Of Solar Sanction Capacity Application.\n"
+			                + "Existing Capacity = " + existingCapacity + "\n"
+			                + "New Capacity = " + newCapacity;
+			    }
+
+			    // New Capacity must be greater than Existing Capacity
+//			    if (newCapacity <= existingCapacity) {
+//
+//			        return "ERROR: New Solar Capacity Must Be Greater Than Existing "
+//			                + "Sanction Capacity For Extension Application.\n"
+//			                + "Existing Capacity = " + existingCapacity + "\n"
+//			                + "New Capacity = " + newCapacity;
+//			    }
+			}
+
+			// ==================================================
+			// RULE 2: SOLAR CAPACITY REDUCTION (FLAG = R)
+			// ==================================================
+
+			else if ("R".equalsIgnoreCase(extensionFlag)) {
+
+			    // Existing and new capacity must be greater than zero
+			    if (existingCapacity <= 0 || newCapacity == null || newCapacity <= 0) {
+
+			        return "ERROR: Existing and New Solar Capacity Must Be Greater Than Zero "
+			                + "For Reduction Of Solar Sanction Capacity Application.\n"
+			                + "Existing Capacity = " + existingCapacity + "\n"
+			                + "New Capacity = " + newCapacity;
+			    }
+
+			    // New capacity must be less than existing capacity
+			    if (newCapacity >= existingCapacity) {
+
+			        return "ERROR: New Solar Capacity Must Be Less Than Existing "
+			                + "Sanction Capacity For Reduction Of Solar Sanction Capacity Application.\n"
 			                + "Existing Capacity = " + existingCapacity + "\n"
 			                + "New Capacity = " + newCapacity;
 			    }
 			}
 
-			// Rule 2: If extension flag is Y, new capacity must be greater than zero.
-			if ("Y".equalsIgnoreCase(extensionFlag) && newCapacity <= 0 && existingCapacity > 0) {
-
-			    return "ERROR: New Solar Capacity Must Be Greater Than Zero "
-			            + "When Capacity Extension Flag Is Y.\n"
-			            + "New Capacity = " + newCapacity;
-			}
 			
 			
 			if(req.getSolarSchemeCode()!=1)

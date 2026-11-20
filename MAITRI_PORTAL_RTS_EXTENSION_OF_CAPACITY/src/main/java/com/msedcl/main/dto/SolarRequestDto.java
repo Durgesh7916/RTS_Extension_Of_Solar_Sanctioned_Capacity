@@ -72,10 +72,10 @@ public class SolarRequestDto {
     private Double existReSancCapacity;
 
     
-    @NotBlank(message = "Capacity Extension Flag is required Capacity Extension Flag must be Y or N")
+    @NotBlank(message = "Capacity Extension Flag is required Capacity Extension Flag must be Y or R")
     @Pattern(
-        regexp = "^[YN]$",
-        message = "Capacity Extension Flag must be Y or N"
+        regexp = "^[YR]$",
+        message = "Capacity Extension Flag must be Y or R"
     )
     private String capacityExtensionFlagYn;
 

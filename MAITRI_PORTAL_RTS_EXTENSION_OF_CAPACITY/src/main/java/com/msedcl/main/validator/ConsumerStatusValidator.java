@@ -77,7 +77,7 @@ public static String validateSolarConsumer(
             if (rs.next() && rs.getInt(1) == 0) {
 
                 return "ERROR: Please provide a valid Solar Rooftop Consumer. "
-                     + "Given consumer is not eligible for Extension of Solar "
+                     + "Given consumer is not eligible for Extension/Reduction of Solar "
                      + "Sanction Capacity because it is not a Solar Consumer.";
             }
         }
@@ -88,23 +88,84 @@ public static String validateSolarConsumer(
 
 
 
+//public static String validateExistingSolarExtensionApplication(
+//        Connection conn, String consumerNumber) throws SQLException {
+//
+//    if (consumerNumber == null || consumerNumber.trim().isEmpty()) {
+//        return "ERROR: Consumer Number cannot be blank.";
+//    }
+//
+//    String sql = "SELECT APPLICATION_ID_N, APPLN_SERVICE_TYPE_ID_N "
+//               + "FROM NC_APPLICATION "
+//               + "WHERE ASSIGNED_CONSUMER_NO_C = ? "
+//               + "AND CURRENT_WF_STATUS_ID_N IN "
+//               + "(1,2,4,5,6,8,9,10,11,13,14,16,17) "
+//               + "AND APPLN_SERVICE_TYPE_ID_N = 40";
+//
+//    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+//
+//        ps.setString(1, consumerNumber.trim());
+//
+//        try (ResultSet rs = ps.executeQuery()) {
+//
+//            if (rs.next()) {
+//
+//                String applicationId = rs.getString("APPLICATION_ID_N");
+//                String serviceType = rs.getString("APPLN_SERVICE_TYPE_ID_N");
+//
+//                return "ERROR: An application for Extension of Solar Rooftop "
+//                     + "Capacity is already available for Consumer Number "
+//                     + consumerNumber.trim()
+//                     + ". Existing Application ID: " + applicationId
+//                     + ", Service Type: " + serviceType
+//                     + "(Extension of Solar Rooftop Capacity)"
+//                     + ". Please Complete The  existing application Workflow.";
+//            }
+//        }
+//    }
+//
+//    return null;
+//}
+//
+
 public static String validateExistingSolarExtensionApplication(
-        Connection conn, String consumerNumber) throws SQLException {
+        Connection conn,
+        String consumerNumber,
+        String capacityExtensionFlagYn) throws SQLException {
 
     if (consumerNumber == null || consumerNumber.trim().isEmpty()) {
         return "ERROR: Consumer Number cannot be blank.";
     }
 
+    if (capacityExtensionFlagYn == null
+            || (!capacityExtensionFlagYn.equalsIgnoreCase("Y")
+            && !capacityExtensionFlagYn.equalsIgnoreCase("R"))) {
+        return "ERROR: Invalid Solar Capacity Extension/Reduction Flag.";
+    }
+
+    // Service Type and Application Description based on Flag
+    int serviceTypeId;
+    String applicationDescription;
+
+    if (capacityExtensionFlagYn.equalsIgnoreCase("Y")) {
+        serviceTypeId = 40;
+        applicationDescription = "Extension of Solar Rooftop Capacity";
+    } else {
+        serviceTypeId = 55;
+        applicationDescription = "Reduction of Solar Rooftop Capacity";
+    }
+
     String sql = "SELECT APPLICATION_ID_N, APPLN_SERVICE_TYPE_ID_N "
-               + "FROM NC_APPLICATION "
-               + "WHERE ASSIGNED_CONSUMER_NO_C = ? "
-               + "AND CURRENT_WF_STATUS_ID_N IN "
-               + "(1,2,4,5,6,8,9,10,11,13,14,16,17) "
-               + "AND APPLN_SERVICE_TYPE_ID_N = 40";
+            + "FROM NC_APPLICATION "
+            + "WHERE ASSIGNED_CONSUMER_NO_C = ? "
+            + "AND CURRENT_WF_STATUS_ID_N IN "
+            + "(1,2,4,5,6,8,9,10,11,13,14,16,17) "
+            + "AND APPLN_SERVICE_TYPE_ID_N = ?";
 
     try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
         ps.setString(1, consumerNumber.trim());
+        ps.setInt(2, serviceTypeId);
 
         try (ResultSet rs = ps.executeQuery()) {
 
@@ -113,19 +174,19 @@ public static String validateExistingSolarExtensionApplication(
                 String applicationId = rs.getString("APPLICATION_ID_N");
                 String serviceType = rs.getString("APPLN_SERVICE_TYPE_ID_N");
 
-                return "ERROR: An application for Extension of Solar Rooftop "
-                     + "Capacity is already available for Consumer Number "
-                     + consumerNumber.trim()
-                     + ". Existing Application ID: " + applicationId
-                     + ", Service Type: " + serviceType
-                     + "(Extension of Solar Rooftop Capacity)"
-                     + ". Please Complete The  existing application Workflow.";
+                return "ERROR: An application for "
+                        + applicationDescription
+                        + " is already available for Consumer Number "
+                        + consumerNumber.trim()
+                        + ". Existing Application ID: " + applicationId
+                        + ", Service Type: " + serviceType
+                        + " (" + applicationDescription + ")"
+                        + ". Please complete the existing application workflow.";
             }
         }
     }
 
     return null;
 }
-
 
 }
