@@ -47,8 +47,9 @@ public class SolarRequestDto {
     @NotBlank(message = "RE Generator String is required")
     private String reGeneratorString;
 
-    @NotNull(message = "Re Arrangement Id is required")
-    private Integer reArrangementId;
+    @Schema(hidden = true)
+    //@NotNull(message = "Re Arrangement Id is required")
+    private Integer reArrangementId=1;
 
     @Schema(hidden = true)
     @Pattern(regexp = "^[YN]$",
@@ -79,11 +80,13 @@ public class SolarRequestDto {
     )
     private String capacityExtensionFlagYn;
 
-    @NotNull(message = "Solar Scheme Code required")
-    private Integer solarSchemeCode;
+    @Schema(hidden = true)
+    //@NotNull(message = "Solar Scheme Code required")
+    private Integer solarSchemeCode=1;
 
-    @NotNull(message = "Solar RE Type Id required")
-    private Integer solarReTypeId;
+    @Schema(hidden = true)
+    //@NotNull(message = "Solar RE Type Id required")
+    private Integer solarReTypeId=1;
 
     @Schema(hidden = true)
      @DecimalMin(value = "0.0",

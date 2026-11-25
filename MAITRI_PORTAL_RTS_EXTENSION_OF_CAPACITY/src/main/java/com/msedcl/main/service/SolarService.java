@@ -390,6 +390,9 @@ public class SolarService {
 					/**************changes re generator strint existing capacity login end**************/
 
 					String[] arr = req.getReGeneratorString().split("@", -1);
+					
+					// Update 1st value with Solar RE Type ID
+					arr[0] = String.valueOf(req.getSolarReTypeId());
 
 					String newCapacity = arr[2]; // 3rd value
 
@@ -768,8 +771,9 @@ public class SolarService {
 			 */
 			if (values.length > 0) {
 
-				Integer reGeneratorTypeId = Integer.parseInt(values[0]);
-
+				//Integer reGeneratorTypeId = Integer.parseInt(values[0]);
+				
+				Integer reGeneratorTypeId =req.getSolarReTypeId();
 				/*
 				 * CHECK MASTER TABLE
 				 */
@@ -896,40 +900,186 @@ public class SolarService {
 			
 			
 			// end Validate reArrangementId = 3 condition
-			if (Math.ceil(req.getInverterCapacity())> Math.ceil(req.getExistingLoad())) {
-				return "ERROR: Cannot proceed to Solar Application, Inverter Capacity Cannot Be Greater Then Existing Total Load \n"
-						+ "Total RE Capacity Applied =" + (req.getExistReSancCapacity() + req.getNewReCapacity())
-						+ "  \nExisting Total load =" + req.getExistingLoad() + "  \nInverter Capacity="
-						+ req.getInverterCapacity();
-			}
-			if (Math.ceil(req.getInverterCapacity()) < Math.ceil(req.getNewReCapacity())) {
-			    return "ERROR: Inverter Capacity should be greater than or equal to Applied Solar Sanctioned Capacity.\n"
-			            + "Applied Solar Sanctioned Capacity = " + req.getNewReCapacity()
-			            + "\nInverter Capacity = " + req.getInverterCapacity();
-			}
+//			if (Math.ceil(req.getInverterCapacity())> Math.ceil(req.getExistingLoad())) {
+//				return "ERROR: Cannot proceed to Solar Application, Inverter Capacity Cannot Be Greater Then Existing Total Load \n"
+//						+ "Total RE Capacity Applied =" + (req.getExistReSancCapacity() + req.getNewReCapacity())
+//						+ "  \nExisting Total load =" + req.getExistingLoad() + "  \nInverter Capacity="
+//						+ req.getInverterCapacity();
+//			}
+//			if (Math.ceil(req.getInverterCapacity()) < Math.ceil(req.getNewReCapacity())) {
+//			    return "ERROR: Inverter Capacity should be greater than or equal to Applied Solar Sanctioned Capacity.\n"
+//			            + "Applied Solar Sanctioned Capacity = " + req.getNewReCapacity()
+//			            + "\nInverter Capacity = " + req.getInverterCapacity();
+//			}
+	        
+	     // ==================================================
+	     // SOLAR CAPACITY EXTENSION / REDUCTION VALIDATION
+	     // ==================================================
+
+	        Double existingCapacity_YN = req.getExistReSancCapacity();
+		     Double newCapacity_YN = req.getNewReCapacity();
+		     Double inverterCapacity = req.getInverterCapacity();
+		     Double existingLoad = req.getExistingLoad();
+
+		     String extensionFlag_YN = req.getCapacityExtensionFlagYn();
+
+		     // Null Handling
+		     if (existingCapacity_YN == null) {
+		         existingCapacity_YN = 0.0;
+		     }
+
+		     if (newCapacity_YN == null) {
+		         newCapacity_YN = 0.0;
+		     }
+
+		     if (inverterCapacity == null) {
+		         inverterCapacity = 0.0;
+		     }
+
+		     if (existingLoad == null) {
+		         existingLoad = 0.0;
+		     }
+
+		     // ==================================================
+		     // STEP 1: CALCULATE TOTAL SOLAR SANCTIONED CAPACITY
+		     // ==================================================
+
+		     Double totalAppliedCapacity = 0.0;
+		     String capacityAction = "";
+
+		     if ("Y".equalsIgnoreCase(extensionFlag_YN)) {
+
+		         // Extension: Existing Capacity + New Capacity
+
+		         capacityAction = "Extension";
+
+		         totalAppliedCapacity = existingCapacity_YN + newCapacity_YN;
+
+		     } else if ("R".equalsIgnoreCase(extensionFlag_YN)) {
+
+		         // Reduction: Existing Capacity - Reduced Capacity
+
+		         capacityAction = "Reduction";
+
+		         totalAppliedCapacity = existingCapacity_YN - newCapacity_YN;
+
+		     } else {
+
+		         return "ERROR: Invalid Solar Capacity Extension/Reduction Flag.";
+		     }
+		     
+		  // ==================================================
+		  // VALIDATE TOTAL SOLAR SANCTIONED CAPACITY AFTER REDUCTION
+		  // ==================================================
+
+		  if ("R".equalsIgnoreCase(extensionFlag_YN)
+		          && totalAppliedCapacity <= 0) {
+
+		      return "ERROR: Total Solar Sanctioned Capacity after Reduction must be greater than zero.\n"
+		              + "Existing Solar Sanctioned Capacity = " + existingCapacity_YN + " kW"
+		              + "\nApplied Solar Reduction Capacity = " + newCapacity_YN + " kW"
+		              + "\nTotal Solar Sanctioned Capacity After Reduction = "
+		              + totalAppliedCapacity + " kW";
+		  }
+
+		     // ==================================================
+		     // STEP 2: VALIDATE NEW CAPACITY
+		     // ==================================================
+
+		     if (newCapacity_YN <= 0) {
+
+		         return "ERROR: Applied Solar " + capacityAction
+		                 + " Capacity must be greater than zero.";
+		     }
+
+		     // ==================================================
+		     // STEP 3: VALIDATE REDUCTION CAPACITY
+		     // ==================================================
+
+		     if ("R".equalsIgnoreCase(extensionFlag_YN)
+		             && newCapacity_YN > existingCapacity_YN) {
+
+		         return "ERROR: Solar Reduction Capacity cannot be greater than Existing Solar Sanctioned Capacity.\n"
+		                 + "Existing Solar Sanctioned Capacity = " + existingCapacity_YN + " kW"
+		                 + "\nApplied Solar Reduction Capacity = " + newCapacity_YN + " kW";
+		     }
+
+		     // ==================================================
+		     // STEP 4: PREPARE CAPACITY DETAILS MESSAGE
+		     // ==================================================
+
+		     String capacityMessage =
+		             "\nExisting Solar Sanctioned Capacity = " + existingCapacity_YN + " kW"
+		             + "\nApplied Solar " + capacityAction + " Capacity = " + newCapacity_YN + " kW"
+		             + "\nTotal Solar Sanctioned Capacity After " + capacityAction
+		             + " = " + totalAppliedCapacity + " kW";
+
+		     // ==================================================
+		     // STEP 5: VALIDATE INVERTER CAPACITY VS EXISTING LOAD
+		     // ==================================================
+
+		     if (Math.ceil(inverterCapacity) > Math.ceil(existingLoad)) {
+
+		         return "ERROR: Cannot proceed with Solar Application. "
+		                 + "Inverter Capacity cannot be greater than Existing Total Load."
+		                 + capacityMessage
+		                 + "\nExisting Total Load = " + existingLoad + " kW"
+		                 + "\nInverter Capacity = " + inverterCapacity + " kW";
+		     }
+
+		     // ==================================================
+		     // STEP 6: VALIDATE INVERTER CAPACITY VS TOTAL SOLAR CAPACITY
+		     // ==================================================
+
+		     if (Math.ceil(inverterCapacity) < Math.ceil(totalAppliedCapacity)) {
+
+		         return "ERROR: Inverter Capacity should be greater than or equal to Total Solar Sanctioned Capacity."
+		                 + capacityMessage
+		                 + "\nInverter Capacity = " + inverterCapacity + " kW";
+		     }
 			
-			if (req.getNewReCapacity() > 100) {
+		  // ==================================================
+		  // BATTERY STORAGE CAPACITY VALIDATION
+		  // ONLY FOR SOLAR CAPACITY EXTENSION (FLAG = Y)
+		  // ==================================================
 
-			    double minimumBatteryCapacity = req.getNewReCapacity() * 0.50;
+		  if ("Y".equalsIgnoreCase(req.getCapacityExtensionFlagYn())) {
 
-			    if (req.getBatteryStorageCapacity() == null
-			            || req.getBatteryStorageCapacity() < minimumBatteryCapacity) {
+		      // Calculate Total RE Capacity After Extension
 
-			        return "ERROR: Battery Storage Capacity should be at least 50% of Applied Solar Sanctioned Capacity.\n"
-			                + "Applied Solar Sanctioned Capacity = " + req.getNewReCapacity()
-			                + "\nMinimum Required Battery Storage Capacity = " + minimumBatteryCapacity
-			                + "\nBattery Storage Capacity = " + req.getBatteryStorageCapacity();
-			    }
-			}
-			
-			if (req.getBatteryStorageCapacity() != null
-			        && req.getBatteryStorageCapacity() > req.getNewReCapacity()) {
+		      double totalReCapacity = existingCapacity + newCapacity;
 
-			    return "ERROR: Battery Storage Capacity cannot be greater than Applied Solar Sanctioned Capacity.\n"
-			            + "Applied Solar Sanctioned Capacity = " + req.getNewReCapacity()
-			            + "\nBattery Storage Capacity = " + req.getBatteryStorageCapacity();
-			}
-			
+		      // RULE 1: Battery Storage must be at least 50%
+		      // when Total RE Capacity is greater than 100
+
+		      if (totalReCapacity > 100) {
+
+		          double minimumBatteryCapacity = totalReCapacity * 0.50;
+
+		          if (req.getBatteryStorageCapacity() == null
+		                  || req.getBatteryStorageCapacity() < minimumBatteryCapacity) {
+
+		              return "ERROR: Battery Storage Capacity should be at least 50% of Total Solar Sanctioned Capacity.\n"
+		                      + "Existing Solar Sanctioned Capacity = " + existingCapacity + " kW"
+		                      + "\nApplied Solar Extension Capacity = " + newCapacity + " kW"
+		                      + "\nTotal Solar Sanctioned Capacity After Extension = " + totalReCapacity + " kW"
+		                      + "\nMinimum Required Battery Storage Capacity = " + minimumBatteryCapacity + " kW"
+		                      + "\nBattery Storage Capacity = " + req.getBatteryStorageCapacity();
+		          }
+		      }
+
+		      // RULE 2: Battery Storage cannot exceed Total RE Capacity
+
+		      if (req.getBatteryStorageCapacity() != null
+		              && req.getBatteryStorageCapacity() > totalReCapacity) {
+
+		          return "ERROR: Battery Storage Capacity cannot be greater than Total Solar Sanctioned Capacity.\n"
+		                  + "Existing Solar Sanctioned Capacity = " + existingCapacity + " kW"
+		                  + "\nApplied Solar Extension Capacity = " + newCapacity + " kW"
+		                  + "\nTotal Solar Sanctioned Capacity After Extension = " + totalReCapacity + " kW"
+		                  + "\nBattery Storage Capacity = " + req.getBatteryStorageCapacity() + " kW";
+		      }
+		  }
 
 //			if (!req.getConsumerCategoryExisting().equalsIgnoreCase(req.getConsumerCategoryLtHt())) {
 //				return "Error: Existing Category " + req.getConsumerCategoryExisting() + " And Provided Category "
